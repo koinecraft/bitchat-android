@@ -55,3 +55,5 @@ google-services.json
 # Keystore files
 *.jks
 *.keystore
+
+NOTES.md
