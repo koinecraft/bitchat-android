@@ -57,3 +57,4 @@ google-services.json
 *.keystore
 
 NOTES.md
+.vscode/

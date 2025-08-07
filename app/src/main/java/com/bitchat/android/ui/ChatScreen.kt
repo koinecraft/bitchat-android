@@ -14,7 +14,6 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.zIndex
-import com.bitchat.android.ui.DataManager.SatochipSettings
 
 /**
  * Main ChatScreen - REFACTORED to use component-based architecture
