@@ -2,6 +2,7 @@ package com.bitchat.android.ui
 
 import android.util.Log
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -16,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -229,7 +231,13 @@ fun ChatHeaderContent(
                 isFavorite = isFavorite,
                 sessionState = sessionState,
                 onBackClick = onBackClick,
-                onToggleFavorite = { viewModel.toggleFavorite(selectedPrivatePeer) }
+                onToggleFavorite = { viewModel.toggleFavorite(selectedPrivatePeer) },
+                onShowSatochipSettings = { 
+                    val fingerprint = viewModel.peerFingerprints.value?.get(selectedPrivatePeer)
+                    if (fingerprint != null) {
+                        viewModel.showSatochipSettings(fingerprint)
+                    }
+                }
             )
         }
         currentChannel != null -> {
@@ -262,7 +270,8 @@ private fun PrivateChatHeader(
     isFavorite: Boolean,
     sessionState: String?,
     onBackClick: () -> Unit,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    onShowSatochipSettings: () -> Unit
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val peerNickname = peerNicknames[peerID] ?: peerID
@@ -307,7 +316,12 @@ private fun PrivateChatHeader(
             Text(
                 text = peerNickname,
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFFFF9500) // Orange
+                color = Color(0xFFFF9500), // Orange
+                modifier = Modifier.pointerInput(Unit) {
+                    detectTapGestures(
+                        onLongPress = { onShowSatochipSettings() }
+                    )
+                }
             )
 
             Spacer(modifier = Modifier.width(4.dp))

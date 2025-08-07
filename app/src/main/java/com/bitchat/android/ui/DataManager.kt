@@ -7,6 +7,14 @@ import com.google.gson.Gson
 import kotlin.random.Random
 
 /**
+ * Data class for Satochip settings per peer
+ */
+data class SatochipSettings(
+    val keyslot: Int = 0,
+    val pinTimeout: Int = 30
+)
+
+/**
  * Handles data persistence operations for the chat system
  */
 class DataManager(private val context: Context) {
@@ -24,10 +32,14 @@ class DataManager(private val context: Context) {
     private val _blockedUsers = mutableSetOf<String>()
     private val _channelMembers = mutableMapOf<String, MutableSet<String>>()
     
+    // Satochip settings per peer (fingerprint -> settings)
+    private val _satochipSettings = mutableMapOf<String, SatochipSettings>()
+    
     val channelCreators: Map<String, String> get() = _channelCreators
     val favoritePeers: Set<String> get() = _favoritePeers
     val blockedUsers: Set<String> get() = _blockedUsers
     val channelMembers: Map<String, MutableSet<String>> get() = _channelMembers
+    val satochipSettings: Map<String, SatochipSettings> get() = _satochipSettings
     
     // MARK: - Nickname Management
     
@@ -193,6 +205,59 @@ class DataManager(private val context: Context) {
         return _blockedUsers.contains(fingerprint)
     }
     
+    // MARK: - Satochip Settings Management
+    
+    fun loadSatochipSettings() {
+        val settingsJson = prefs.getString("satochip_settings", "{}")
+        try {
+            val settingsMap = gson.fromJson(settingsJson, Map::class.java) as? Map<String, Map<String, Any>>
+            settingsMap?.forEach { (fingerprint, settingsData) ->
+                val keyslot = (settingsData["keyslot"] as? Number)?.toInt() ?: 0
+                val pinTimeout = (settingsData["pinTimeout"] as? Number)?.toInt() ?: 30
+                _satochipSettings[fingerprint] = SatochipSettings(keyslot, pinTimeout)
+            }
+            Log.d(TAG, "Loaded Satochip settings for ${_satochipSettings.size} peers")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load Satochip settings: ${e.message}")
+        }
+    }
+    
+    fun saveSatochipSettings() {
+        try {
+            val settingsMap = _satochipSettings.mapValues { (_, settings) ->
+                mapOf(
+                    "keyslot" to settings.keyslot,
+                    "pinTimeout" to settings.pinTimeout
+                )
+            }
+            val settingsJson = gson.toJson(settingsMap)
+            prefs.edit().putString("satochip_settings", settingsJson).apply()
+            Log.d(TAG, "Saved Satochip settings for ${_satochipSettings.size} peers")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save Satochip settings: ${e.message}")
+        }
+    }
+    
+    fun getSatochipSettings(fingerprint: String): SatochipSettings {
+        return _satochipSettings[fingerprint] ?: SatochipSettings()
+    }
+    
+    fun setSatochipSettings(fingerprint: String, settings: SatochipSettings) {
+        _satochipSettings[fingerprint] = settings
+        saveSatochipSettings()
+        Log.d(TAG, "Updated Satochip settings for fingerprint $fingerprint: keyslot=${settings.keyslot}, pinTimeout=${settings.pinTimeout}")
+    }
+    
+    fun updateSatochipKeyslot(fingerprint: String, keyslot: Int) {
+        val currentSettings = getSatochipSettings(fingerprint)
+        setSatochipSettings(fingerprint, currentSettings.copy(keyslot = keyslot))
+    }
+    
+    fun updateSatochipPinTimeout(fingerprint: String, pinTimeout: Int) {
+        val currentSettings = getSatochipSettings(fingerprint)
+        setSatochipSettings(fingerprint, currentSettings.copy(pinTimeout = pinTimeout))
+    }
+    
     // MARK: - Emergency Clear
     
     fun clearAllData() {
@@ -200,6 +265,7 @@ class DataManager(private val context: Context) {
         _favoritePeers.clear()
         _blockedUsers.clear()
         _channelMembers.clear()
+        _satochipSettings.clear()
         prefs.edit().clear().apply()
     }
 }

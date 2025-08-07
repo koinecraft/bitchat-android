@@ -110,6 +110,13 @@ class ChatState {
     private val _showAppInfo = MutableLiveData<Boolean>(false)
     val showAppInfo: LiveData<Boolean> = _showAppInfo
     
+    // Satochip settings state
+    private val _showSatochipSettings = MutableLiveData<Boolean>(false)
+    val showSatochipSettings: LiveData<Boolean> = _showSatochipSettings
+    
+    private val _currentSatochipPeer = MutableLiveData<String?>(null)
+    val currentSatochipPeer: LiveData<String?> = _currentSatochipPeer
+    
     // Unread state computed properties
     val hasUnreadChannels: MediatorLiveData<Boolean> = MediatorLiveData<Boolean>()
     val hasUnreadPrivateMessages: MediatorLiveData<Boolean> = MediatorLiveData<Boolean>()
@@ -148,6 +155,8 @@ class ChatState {
     fun getPeerSessionStatesValue() = _peerSessionStates.value ?: emptyMap()
     fun getPeerFingerprintsValue() = _peerFingerprints.value ?: emptyMap()
     fun getShowAppInfoValue() = _showAppInfo.value ?: false
+    fun getShowSatochipSettingsValue() = _showSatochipSettings.value ?: false
+    fun getCurrentSatochipPeerValue() = _currentSatochipPeer.value
     
     // Setters for state updates
     fun setMessages(messages: List<BitchatMessage>) {
@@ -258,6 +267,14 @@ class ChatState {
     
     fun setShowAppInfo(show: Boolean) {
         _showAppInfo.value = show
+    }
+    
+    fun setShowSatochipSettings(show: Boolean) {
+        _showSatochipSettings.value = show
+    }
+    
+    fun setCurrentSatochipPeer(peerFingerprint: String?) {
+        _currentSatochipPeer.value = peerFingerprint
     }
 
 }

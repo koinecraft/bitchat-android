@@ -91,6 +91,8 @@ class ChatViewModel(
     val peerNicknames: LiveData<Map<String, String>> = state.peerNicknames
     val peerRSSI: LiveData<Map<String, Int>> = state.peerRSSI
     val showAppInfo: LiveData<Boolean> = state.showAppInfo
+    val showSatochipSettings: LiveData<Boolean> = state.showSatochipSettings
+    val currentSatochipPeer: LiveData<String?> = state.currentSatochipPeer
     
     init {
         // Note: Mesh service delegate is now set by MainActivity
@@ -120,6 +122,7 @@ class ChatViewModel(
         dataManager.loadFavorites()
         state.setFavoritePeers(dataManager.favoritePeers.toSet())
         dataManager.loadBlockedUsers()
+        dataManager.loadSatochipSettings()
         
         // Log all favorites at startup
         dataManager.logAllFavorites()
@@ -484,6 +487,28 @@ class ChatViewModel(
         state.setShowAppInfo(false)
     }
     
+    fun showSatochipSettings(peerFingerprint: String) {
+        state.setCurrentSatochipPeer(peerFingerprint)
+        state.setShowSatochipSettings(true)
+    }
+    
+    fun hideSatochipSettings() {
+        state.setShowSatochipSettings(false)
+        state.setCurrentSatochipPeer(null)
+    }
+    
+    fun getSatochipSettings(peerFingerprint: String): SatochipSettings {
+        return dataManager.getSatochipSettings(peerFingerprint)
+    }
+    
+    fun setSatochipKeyslot(peerFingerprint: String, keyslot: Int) {
+        dataManager.updateSatochipKeyslot(peerFingerprint, keyslot)
+    }
+    
+    fun setSatochipPinTimeout(peerFingerprint: String, pinTimeout: Int) {
+        dataManager.updateSatochipPinTimeout(peerFingerprint, pinTimeout)
+    }
+    
     fun showSidebar() {
         state.setShowSidebar(true)
     }
@@ -501,6 +526,11 @@ class ChatViewModel(
             // Close app info dialog
             state.getShowAppInfoValue() -> {
                 hideAppInfo()
+                true
+            }
+            // Close Satochip settings dialog
+            state.getShowSatochipSettingsValue() -> {
+                hideSatochipSettings()
                 true
             }
             // Close sidebar

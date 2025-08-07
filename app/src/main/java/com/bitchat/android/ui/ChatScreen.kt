@@ -14,6 +14,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.zIndex
+import com.bitchat.android.ui.DataManager.SatochipSettings
 
 /**
  * Main ChatScreen - REFACTORED to use component-based architecture
@@ -44,7 +45,34 @@ fun ChatScreen(viewModel: ChatViewModel) {
     val showMentionSuggestions by viewModel.showMentionSuggestions.observeAsState(false)
     val mentionSuggestions by viewModel.mentionSuggestions.observeAsState(emptyList())
     val showAppInfo by viewModel.showAppInfo.observeAsState(false)
-
+    val showSatochipSettings by viewModel.showSatochipSettings.observeAsState(false)
+    val currentSatochipPeer by viewModel.currentSatochipPeer.observeAsState(null)
+    
+    // Get current Satochip settings for the selected peer
+    val currentSatochipSettings = remember(currentSatochipPeer) {
+        if (currentSatochipPeer != null) {
+            viewModel.getSatochipSettings(currentSatochipPeer!!)
+        } else {
+            SatochipSettings()
+        }
+    }
+    
+    // Create local state for slider values that updates immediately
+    var localKeyslot by remember(currentSatochipPeer) { 
+        mutableStateOf(currentSatochipSettings.keyslot) 
+    }
+    var localPinTimeout by remember(currentSatochipPeer) { 
+        mutableStateOf(currentSatochipSettings.pinTimeout) 
+    }
+    
+    // Update local state when peer changes
+    LaunchedEffect(currentSatochipPeer) {
+        if (currentSatochipPeer != null) {
+            val settings = viewModel.getSatochipSettings(currentSatochipPeer!!)
+            localKeyslot = settings.keyslot
+            localPinTimeout = settings.pinTimeout
+        }
+    }
     var messageText by remember { mutableStateOf(TextFieldValue("")) }
     var showPasswordPrompt by remember { mutableStateOf(false) }
     var showPasswordDialog by remember { mutableStateOf(false) }
@@ -197,7 +225,24 @@ fun ChatScreen(viewModel: ChatViewModel) {
             passwordInput = ""
         },
         showAppInfo = showAppInfo,
-        onAppInfoDismiss = { viewModel.hideAppInfo() }
+        onAppInfoDismiss = { viewModel.hideAppInfo() },
+        showSatochipSettings = showSatochipSettings,
+        satochipKeyslot = localKeyslot,
+        satochipPinTimeout = localPinTimeout,
+        onSatochipKeyslotChange = { newValue ->
+            localKeyslot = newValue
+            if (currentSatochipPeer != null) {
+                viewModel.setSatochipKeyslot(currentSatochipPeer!!, newValue)
+            }
+        },
+        onSatochipPinTimeoutChange = { newValue ->
+            localPinTimeout = newValue
+            if (currentSatochipPeer != null) {
+                viewModel.setSatochipPinTimeout(currentSatochipPeer!!, newValue)
+            }
+        },
+        onSatochipSettingsConfirm = { viewModel.hideSatochipSettings() },
+        onSatochipSettingsDismiss = { viewModel.hideSatochipSettings() }
     )
 }
 
@@ -324,7 +369,14 @@ private fun ChatDialogs(
     onPasswordConfirm: () -> Unit,
     onPasswordDismiss: () -> Unit,
     showAppInfo: Boolean,
-    onAppInfoDismiss: () -> Unit
+    onAppInfoDismiss: () -> Unit,
+    showSatochipSettings: Boolean,
+    satochipKeyslot: Int,
+    satochipPinTimeout: Int,
+    onSatochipKeyslotChange: (Int) -> Unit,
+    onSatochipPinTimeoutChange: (Int) -> Unit,
+    onSatochipSettingsConfirm: () -> Unit,
+    onSatochipSettingsDismiss: () -> Unit
 ) {
     // Password dialog
     PasswordPromptDialog(
@@ -340,5 +392,16 @@ private fun ChatDialogs(
     AppInfoDialog(
         show = showAppInfo,
         onDismiss = onAppInfoDismiss
+    )
+    
+    // Satochip settings dialog
+    SatochipSettingsDialog(
+        show = showSatochipSettings,
+        keyslot = satochipKeyslot,
+        onKeyslotChange = onSatochipKeyslotChange,
+        pinTimeout = satochipPinTimeout,
+        onPinTimeoutChange = onSatochipPinTimeoutChange,
+        onConfirm = onSatochipSettingsConfirm,
+        onDismiss = onSatochipSettingsDismiss
     )
 }
