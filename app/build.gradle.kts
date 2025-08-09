@@ -52,6 +52,9 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // Exclude conflicting BouncyCastle classes to resolve duplicate class errors
+            excludes += "org/bouncycastle/x509/CertPathReviewerMessages_de.properties"
+            excludes += "org/bouncycastle/x509/CertPathReviewerMessages.properties"
         }
     }
     lint {
@@ -97,6 +100,15 @@ dependencies {
     
     // Security preferences
     implementation(libs.androidx.security.crypto)
+    
+    // // Satochip libraries
+    // implementation(files("libs/satochip-lib-0.2.6.2.jar"))
+    // implementation(files("libs/satochip-android-0.0.2.jar"))
+    
+    // // Satochip-related dependencies
+    // implementation("org.bitcoinj:bitcoinj-core:0.16.2") {
+    //     exclude(group = "org.bouncycastle", module = "bcprov-jdk15on")
+    // }
     
     // Testing
     testImplementation(libs.bundles.testing)

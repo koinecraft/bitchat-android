@@ -14,6 +14,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.zIndex
+import android.util.Log
 
 /**
  * Main ChatScreen - REFACTORED to use component-based architecture
@@ -123,6 +124,8 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 },
                 onSend = {
                     if (messageText.text.trim().isNotEmpty()) {
+                        // Log the message after user presses send but before encryption/storage
+                        // Log.d("Koine", "User sending message: ${messageText.text.trim()}")
                         viewModel.sendMessage(messageText.text.trim())
                         messageText = TextFieldValue("")
                     }

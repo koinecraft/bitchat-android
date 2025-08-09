@@ -223,6 +223,8 @@ class ChatViewModel(
         if (selectedPeer != null) {
             // Send private message
             val recipientNickname = meshService.getPeerNicknames()[selectedPeer]
+            // Log private message before sending
+            Log.d("Koine", "User sending private message to $selectedPeer: $content")
             privateChatManager.sendPrivateMessage(
                 content, 
                 selectedPeer, 
