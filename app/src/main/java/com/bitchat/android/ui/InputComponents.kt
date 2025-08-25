@@ -34,6 +34,9 @@ import androidx.compose.ui.unit.sp
 import com.bitchat.android.R
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.bitchat.android.ui.theme.BASE_FONT_SIZE
 
 /**
@@ -165,6 +168,11 @@ fun MessageInput(
     val isFocused = remember { mutableStateOf(false) }
     val hasText = value.text.isNotBlank() // Check if there's text for send button state
     
+    // Signing state
+    var signingEnabled by remember { mutableStateOf(false) }
+    var showSigningDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    
     Row(
         modifier = modifier.padding(horizontal = 12.dp, vertical = 8.dp), // Reduced padding
         verticalAlignment = Alignment.CenterVertically,
@@ -211,6 +219,22 @@ fun MessageInput(
         
         Spacer(modifier = Modifier.width(8.dp)) // Reduced spacing
         
+        // Signing toggle button
+        IconButton(
+            onClick = {
+                signingEnabled = !signingEnabled
+                showSigningDialog = true
+            },
+            modifier = Modifier.size(24.dp)
+        ) {
+            Icon(
+                imageVector = if (signingEnabled) Icons.Filled.Lock else Icons.Filled.LockOpen,
+                contentDescription = "Toggle message signing",
+                modifier = Modifier.size(16.dp),
+                tint = if (signingEnabled) Color(0xFF4CAF50) else colorScheme.onSurface.copy(alpha = 0.5f)
+            )
+        }
+        
         // Command quick access button
         if (value.text.isEmpty()) {
             FilledTonalIconButton(
@@ -226,47 +250,111 @@ fun MessageInput(
             }
         } else {
             // Send button with enabled/disabled state
-            IconButton(
-                onClick = { if (hasText) onSend() }, // Only execute if there's text
-                enabled = hasText, // Enable only when there's text
-                modifier = Modifier.size(32.dp)
-            ) {
-                // Update send button to match input field colors
-                Box(
-                    modifier = Modifier
-                        .size(30.dp)
-                        .background(
-                            color = if (!hasText) {
-                                // Disabled state - muted grey
-                                colorScheme.onSurface.copy(alpha = 0.3f)
+            Box {
+                IconButton(
+                    onClick = { if (hasText) onSend() }, // Only execute if there's text
+                    enabled = hasText, // Enable only when there's text
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    // Update send button to match input field colors
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .background(
+                                color = if (!hasText) {
+                                    // Disabled state - muted grey
+                                    colorScheme.onSurface.copy(alpha = 0.3f)
+                                } else if (selectedPrivatePeer != null || currentChannel != null) {
+                                    // Orange for both private messages and channels when enabled
+                                    Color(0xFFFF9500).copy(alpha = 0.75f)
+                                } else if (colorScheme.background == Color.Black) {
+                                    Color(0xFF00FF00).copy(alpha = 0.75f) // Bright green for dark theme
+                                } else {
+                                    Color(0xFF008000).copy(alpha = 0.75f) // Dark green for light theme
+                                },
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.ArrowUpward,   // ArrowUpward, ArrowRight, ArrowCircleUp
+                            contentDescription = stringResource(id = R.string.send_message),
+                            modifier = Modifier.size(20.dp),
+                            tint = if (!hasText) {
+                                // Disabled state - muted grey icon
+                                colorScheme.onSurface.copy(alpha = 0.5f)
                             } else if (selectedPrivatePeer != null || currentChannel != null) {
-                                // Orange for both private messages and channels when enabled
-                                Color(0xFFFF9500).copy(alpha = 0.75f)
+                                // Black arrow on orange for both private and channel modes
+                                Color.Black
                             } else if (colorScheme.background == Color.Black) {
-                                Color(0xFF00FF00).copy(alpha = 0.75f) // Bright green for dark theme
+                                Color.Black // Black arrow on bright green in dark theme
                             } else {
-                                Color(0xFF008000).copy(alpha = 0.75f) // Dark green for light theme
-                            },
-                            shape = CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                                Color.White // White arrow on dark green in light theme
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+    
+    // Signing state dialog
+    if (showSigningDialog) {
+        Dialog(
+            onDismissRequest = { showSigningDialog = false },
+            properties = DialogProperties(
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true
+            )
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = colorScheme.surface,
+                tonalElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.ArrowUpward,
-                        contentDescription = stringResource(id = R.string.send_message),
-                        modifier = Modifier.size(20.dp),
-                        tint = if (!hasText) {
-                            // Disabled state - muted grey icon
-                            colorScheme.onSurface.copy(alpha = 0.5f)
-                        } else if (selectedPrivatePeer != null || currentChannel != null) {
-                            // Black arrow on orange for both private and channel modes
-                            Color.Black
-                        } else if (colorScheme.background == Color.Black) {
-                            Color.Black // Black arrow on bright green in dark theme
-                        } else {
-                            Color.White // White arrow on dark green in light theme
-                        }
+                        imageVector = if (signingEnabled) Icons.Filled.CheckCircle else Icons.Filled.Cancel,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp),
+                        tint = if (signingEnabled) Color(0xFF4CAF50) else Color(0xFFF44336)
                     )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(
+                        text = if (signingEnabled) "Message Signing Enabled" else "Message Signing Disabled",
+                        style = MaterialTheme.typography.headlineSmall,
+                        textAlign = TextAlign.Center,
+                        color = colorScheme.onSurface
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    Text(
+                        text = if (signingEnabled) 
+                            "Your messages will now be cryptographically signed." 
+                        else 
+                            "Your messages will be sent without cryptographic signatures.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        color = colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Button(
+                        onClick = { showSigningDialog = false },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("OK")
+                    }
                 }
             }
         }
