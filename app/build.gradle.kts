@@ -52,6 +52,11 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // Exclude conflicting BouncyCastle classes to resolve duplicate class errors
+            excludes += "org/bouncycastle/x509/CertPathReviewerMessages_de.properties"
+            excludes += "org/bouncycastle/x509/CertPathReviewerMessages.properties"
+            // Exclude all BouncyCastle classes to prevent conflicts
+            excludes += "org/bouncycastle/**"
         }
     }
     lint {
@@ -62,6 +67,11 @@ android {
 }
 
 dependencies {
+    // Exclude conflicting BouncyCastle versions
+    configurations.all {
+        exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
+    }
+    
     // Core Android dependencies
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -82,6 +92,7 @@ dependencies {
     
     // Cryptography
     implementation(libs.bundles.cryptography)
+    implementation(libs.bouncycastle.bcprov)
     
     // JSON
     implementation(libs.gson)
@@ -108,6 +119,7 @@ dependencies {
     // Satochip-related dependencies
     implementation("org.bitcoinj:bitcoinj-core:0.16.2") {
         exclude(group = "org.bouncycastle", module = "bcprov-jdk15on")
+        exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
     }
 
     // Testing
