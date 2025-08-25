@@ -158,7 +158,7 @@ class CombinedVisualTransformation(private val transformations: List<VisualTrans
 fun MessageInput(
     value: TextFieldValue,
     onValueChange: (TextFieldValue) -> Unit,
-    onSend: () -> Unit,
+    onSend: (Boolean) -> Unit, // Modified to accept signing state
     selectedPrivatePeer: String?,
     currentChannel: String?,
     nickname: String,
@@ -192,7 +192,7 @@ fun MessageInput(
                 cursorBrush = SolidColor(colorScheme.primary),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { 
-                    if (hasText) onSend() // Only send if there's text
+                    if (hasText) onSend(signingEnabled) // Only send if there's text
                 }),
                 visualTransformation = CombinedVisualTransformation(
                     listOf(SlashCommandVisualTransformation(), MentionVisualTransformation())
@@ -251,11 +251,11 @@ fun MessageInput(
         } else {
             // Send button with enabled/disabled state
             Box {
-                IconButton(
-                    onClick = { if (hasText) onSend() }, // Only execute if there's text
-                    enabled = hasText, // Enable only when there's text
-                    modifier = Modifier.size(32.dp)
-                ) {
+                            IconButton(
+                onClick = { if (hasText) onSend(signingEnabled) }, // Only execute if there's text
+                enabled = hasText, // Enable only when there's text
+                modifier = Modifier.size(32.dp)
+            ) {
                     // Update send button to match input field colors
                     Box(
                         modifier = Modifier

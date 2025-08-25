@@ -153,9 +153,14 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     viewModel.updateCommandSuggestions(newText.text)
                     viewModel.updateMentionSuggestions(newText.text)
                 },
-                onSend = {
+                onSend = { signingEnabled ->
                     if (messageText.text.trim().isNotEmpty()) {
-                        viewModel.sendMessage(messageText.text.trim())
+                        val messageContent = if (signingEnabled) {
+                            "${messageText.text.trim()}:signed"
+                        } else {
+                            messageText.text.trim()
+                        }
+                        viewModel.sendMessage(messageContent)
                         messageText = TextFieldValue("")
                         forceScrollToBottom = !forceScrollToBottom // Toggle to trigger scroll
                     }
@@ -315,7 +320,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
 private fun ChatInputSection(
     messageText: TextFieldValue,
     onMessageTextChange: (TextFieldValue) -> Unit,
-    onSend: () -> Unit,
+    onSend: (Boolean) -> Unit, // Updated to accept signing state
     showCommandSuggestions: Boolean,
     commandSuggestions: List<CommandSuggestion>,
     showMentionSuggestions: Boolean,
