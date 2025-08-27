@@ -44,12 +44,8 @@ class MeshDelegateHandler(
             // Parse signed message if present
             val parsedMessage = SatochipMessageParser.parseMessage(message.content)
             
-            // Create updated message with parsed content
-            val updatedMessage = if (parsedMessage.isSigned) {
-                message.copy(content = parsedMessage.content)
-            } else {
-                message
-            }
+            // Create updated message with display content (shows ~signed if signed)
+            val updatedMessage = message.copy(content = SatochipMessageParser.getDisplayContent(parsedMessage))
             
             // Trigger haptic feedback
             onHapticFeedback()

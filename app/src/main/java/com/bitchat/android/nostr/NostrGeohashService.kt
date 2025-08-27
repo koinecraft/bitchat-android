@@ -424,11 +424,11 @@ class NostrGeohashService(
                 // Parse signed message if present
                 val parsedMessage = SatochipMessageParser.parseMessage(messageContent)
                 
-                // Create BitchatMessage
+                // Create BitchatMessage with display content (shows ~signed if signed)
                 val message = BitchatMessage(
                     id = messageId,
                     sender = senderNickname,
-                    content = parsedMessage.content,
+                    content = SatochipMessageParser.getDisplayContent(parsedMessage),
                     timestamp = messageTimestamp,
                     isRelay = false,
                     isPrivate = true,

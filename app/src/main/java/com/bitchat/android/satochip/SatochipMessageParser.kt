@@ -1,6 +1,8 @@
 package com.bitchat.android.satochip
 
 import android.util.Log
+import com.bitchat.android.nostr.NostrCrypto
+import java.security.MessageDigest
 
 /**
  * Utility class for parsing Satochip signed messages
@@ -47,6 +49,53 @@ object SatochipMessageParser {
     fun isSignedMessage(messageContent: String): Boolean {
         val lastSeparatorIndex = messageContent.lastIndexOf(SIGNATURE_SEPARATOR)
         return lastSeparatorIndex != -1 && lastSeparatorIndex < messageContent.length - 1
+    }
+    
+    /**
+     * Verify a signed message using the provided public key
+     * @param messageContent The original message content (without signature)
+     * @param signatureHex The signature in hexadecimal format
+     * @param publicKeyHex The public key in hexadecimal format
+     * @return true if the signature is valid
+     */
+    fun verifySignedMessage(messageContent: String, signatureHex: String, publicKeyHex: String): Boolean {
+        return try {
+            // Hash the message content (same as when signing)
+            val messageHash = hashMessageContent(messageContent)
+            
+            // Verify using BIP-340 Schnorr verification
+            val isValid = NostrCrypto.schnorrVerify(messageHash, signatureHex, publicKeyHex)
+            
+            Log.d(TAG, "Signature verification result: $isValid for message: '$messageContent'")
+            
+            isValid
+        } catch (e: Exception) {
+            Log.e(TAG, "Error verifying signature: ${e.message}")
+            false
+        }
+    }
+    
+    /**
+     * Hash message content for signing/verification (same as SatochipService)
+     * @param messageContent The message content to hash
+     * @return 32-byte hash
+     */
+    private fun hashMessageContent(messageContent: String): ByteArray {
+        val digest = MessageDigest.getInstance("SHA-256")
+        return digest.digest(messageContent.toByteArray(Charsets.UTF_8))
+    }
+    
+    /**
+     * Get display content for a parsed message
+     * @param parsedMessage The parsed message
+     * @return Content to display to the user (with ~signed indicator if signed)
+     */
+    fun getDisplayContent(parsedMessage: ParsedMessage): String {
+        return if (parsedMessage.isSigned) {
+            "${parsedMessage.content}~signed"
+        } else {
+            parsedMessage.content
+        }
     }
 }
 
