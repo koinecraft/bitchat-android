@@ -5,6 +5,7 @@ import com.bitchat.android.mesh.BluetoothMeshDelegate
 import com.bitchat.android.mesh.BluetoothMeshService
 import com.bitchat.android.model.BitchatMessage
 import com.bitchat.android.model.DeliveryStatus
+import com.bitchat.android.satochip.SatochipMessageParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import java.util.*
@@ -40,12 +41,22 @@ class MeshDelegateHandler(
                 }
             }
             
+            // Parse signed message if present
+            val parsedMessage = SatochipMessageParser.parseMessage(message.content)
+            
+            // Create updated message with parsed content
+            val updatedMessage = if (parsedMessage.isSigned) {
+                message.copy(content = parsedMessage.content)
+            } else {
+                message
+            }
+            
             // Trigger haptic feedback
             onHapticFeedback()
 
             if (message.isPrivate) {
                 // Private message
-                privateChatManager.handleIncomingPrivateMessage(message)
+                privateChatManager.handleIncomingPrivateMessage(updatedMessage)
                 
                 // Reactive read receipts: Send immediately if user is currently viewing this chat
                 message.senderPeerID?.let { senderPeerID ->
@@ -59,20 +70,20 @@ class MeshDelegateHandler(
                     notificationManager.showPrivateMessageNotification(
                         senderPeerID = senderPeerID, 
                         senderNickname = senderNickname, 
-                        messageContent = message.content
+                        messageContent = updatedMessage.content
                     )
                 }
             } else if (message.channel != null) {
                 // Channel message
                 if (state.getJoinedChannelsValue().contains(message.channel)) {
-                    channelManager.addChannelMessage(message.channel, message, message.senderPeerID)
+                    channelManager.addChannelMessage(message.channel, updatedMessage, message.senderPeerID)
                 }
             } else {
                 // Public message
-                messageManager.addMessage(message)
+                messageManager.addMessage(updatedMessage)
                 
                 // Check for mentions in mesh chat
-                checkAndTriggerMeshMentionNotification(message)
+                checkAndTriggerMeshMentionNotification(updatedMessage)
             }
             
             // Periodic cleanup

@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.bitchat.android.mesh.BluetoothMeshService
 import com.bitchat.android.model.BitchatMessage
+import com.bitchat.android.satochip.SatochipMessageParser
 import com.bitchat.android.ui.ChatState
 import com.bitchat.android.ui.MessageManager
 import com.bitchat.android.ui.MeshDelegateHandler
@@ -420,11 +421,14 @@ class NostrGeohashService(
                 // Check if viewing this chat
                 val isViewingThisChat = state.getSelectedPrivateChatPeerValue() == targetPeerID
                 
+                // Parse signed message if present
+                val parsedMessage = SatochipMessageParser.parseMessage(messageContent)
+                
                 // Create BitchatMessage
                 val message = BitchatMessage(
                     id = messageId,
                     sender = senderNickname,
-                    content = messageContent,
+                    content = parsedMessage.content,
                     timestamp = messageTimestamp,
                     isRelay = false,
                     isPrivate = true,
