@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.zIndex
 import com.bitchat.android.model.BitchatMessage
+import com.bitchat.android.satochip.SatochipService
+import com.bitchat.android.ui.SatochipSigningDialog
 
 /**
  * Main ChatScreen - REFACTORED to use component-based architecture
@@ -62,6 +64,10 @@ fun ChatScreen(viewModel: ChatViewModel) {
     var selectedMessageForSheet by remember { mutableStateOf<BitchatMessage?>(null) }
     var forceScrollToBottom by remember { mutableStateOf(false) }
     var isScrolledUp by remember { mutableStateOf(false) }
+    
+    // Satochip signing dialog state
+    var showSatochipSigningDialog by remember { mutableStateOf(false) }
+    var pendingMessageForSigning by remember { mutableStateOf("") }
 
     // Show password dialog when needed
     LaunchedEffect(showPasswordPrompt) {
@@ -155,14 +161,16 @@ fun ChatScreen(viewModel: ChatViewModel) {
                 },
                 onSend = { signingEnabled ->
                     if (messageText.text.trim().isNotEmpty()) {
-                        val messageContent = if (signingEnabled) {
-                            "${messageText.text.trim()}:signed"
+                        if (signingEnabled) {
+                            // Show Satochip signing dialog
+                            pendingMessageForSigning = messageText.text.trim()
+                            showSatochipSigningDialog = true
                         } else {
-                            messageText.text.trim()
+                            // Send message without signing
+                            viewModel.sendMessage(messageText.text.trim())
+                            messageText = TextFieldValue("")
+                            forceScrollToBottom = !forceScrollToBottom // Toggle to trigger scroll
                         }
-                        viewModel.sendMessage(messageContent)
-                        messageText = TextFieldValue("")
-                        forceScrollToBottom = !forceScrollToBottom // Toggle to trigger scroll
                     }
                 },
                 showCommandSuggestions = showCommandSuggestions,
@@ -314,6 +322,25 @@ fun ChatScreen(viewModel: ChatViewModel) {
         selectedMessageForSheet = selectedMessageForSheet,
         viewModel = viewModel
     )
+    
+    // Satochip signing dialog
+    if (showSatochipSigningDialog) {
+        SatochipSigningDialog(
+            messageContent = pendingMessageForSigning,
+            onSigningComplete = { signedMessage ->
+                viewModel.sendMessage(signedMessage)
+                messageText = TextFieldValue("")
+                forceScrollToBottom = !forceScrollToBottom
+                showSatochipSigningDialog = false
+                pendingMessageForSigning = ""
+            },
+            onSigningCancelled = {
+                showSatochipSigningDialog = false
+                pendingMessageForSigning = ""
+            },
+            satochipService = viewModel.getSatochipService()
+        )
+    }
 }
 
 @Composable

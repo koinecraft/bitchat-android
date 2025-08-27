@@ -11,6 +11,7 @@ import com.bitchat.android.mesh.BluetoothMeshService
 import com.bitchat.android.model.BitchatMessage
 import com.bitchat.android.protocol.BitchatPacket
 import com.bitchat.android.nostr.NostrGeohashService
+import com.bitchat.android.satochip.SatochipService
 
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -71,6 +72,13 @@ class ChatViewModel(
         coroutineScope = viewModelScope,
         dataManager = dataManager,
         notificationManager = notificationManager
+    )
+    
+    // Satochip service - initialize singleton
+    private val satochipService = SatochipService.getInstance(
+        context = application.applicationContext,
+        meshService = meshService,
+        chatViewModel = this
     )
     
     // Expose state through LiveData (maintaining the same interface)
@@ -772,5 +780,67 @@ class ChatViewModel(
         return nostrGeohashService.colorForNostrPubkey(pubkeyHex, isDark)
     }
     
+    // MARK: - Satochip Integration
+    
+    /**
+     * Check if Satochip card is connected
+     */
+    fun isSatochipCardConnected(): Boolean {
+        return satochipService.isCardConnected()
+    }
+    
+    /**
+     * Get Satochip card status
+     */
+    fun getSatochipCardStatus(): String {
+        val status = satochipService.getCardStatus()
+        return if (status != null) {
+            "Connected - ${if (status.isSeeded && status.isSetupDone) "Ready" else "Setup Required"}"
+        } else {
+            "Not Connected"
+        }
+    }
+    
+    /**
+     * Sign a Nostr event using Satochip card
+     */
+    fun signNostrEventWithSatochip(eventContent: String, keyslot: Int = 0): String? {
+        return satochipService.signNostrEvent(eventContent, keyslot)
+    }
+    
+    /**
+     * Get public key from Satochip card
+     */
+    fun getSatochipPublicKey(keyslot: Int = 0): ByteArray? {
+        return satochipService.getPublicKey(keyslot)
+    }
+    
+    /**
+     * Verify PIN with Satochip card
+     */
+    fun verifySatochipPin(pin: String): Boolean {
+        return satochipService.verifyPin(pin)
+    }
+    
+    /**
+     * Initialize Satochip card
+     */
+    fun initializeSatochipCard(): Boolean {
+        return satochipService.initializeCard()
+    }
+    
+    /**
+     * Verify Satochip card authenticity
+     */
+    fun verifySatochipCardAuthenticity(): Boolean {
+        return satochipService.verifyCardAuthenticity()
+    }
+    
+    /**
+     * Get Satochip service instance
+     */
+    fun getSatochipService(): SatochipService {
+        return satochipService
+    }
 
 }

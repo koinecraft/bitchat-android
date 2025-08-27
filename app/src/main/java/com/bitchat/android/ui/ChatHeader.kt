@@ -87,6 +87,38 @@ fun NoiseSessionIcon(
 }
 
 @Composable
+fun SatochipStatusIcon(
+    isConnected: Boolean,
+    isPinVerified: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val (icon, color, contentDescription) = when {
+        !isConnected -> Triple(
+            Icons.Outlined.Nfc,
+            Color(0x87878700), // Grey - not connected
+            "Satochip card not connected"
+        )
+        !isPinVerified -> Triple(
+            Icons.Outlined.Nfc,
+            Color(0xFFFF9500), // Orange - connected but PIN needed
+            "Satochip card connected, PIN required"
+        )
+        else -> Triple(
+            Icons.Filled.Nfc,
+            Color(0xFF00C851), // Green - ready to use
+            "Satochip card ready"
+        )
+    }
+    
+    Icon(
+        imageVector = icon,
+        contentDescription = contentDescription,
+        modifier = modifier,
+        tint = color
+    )
+}
+
+@Composable
 fun NicknameEditor(
     value: String,
     onValueChange: (String) -> Unit,
@@ -269,7 +301,8 @@ fun ChatHeaderContent(
                 selectedLocationChannel = selectedLocationChannel,
                 geohashPeople = geohashPeople,
                 onBackClick = onBackClick,
-                onToggleFavorite = { viewModel.toggleFavorite(selectedPrivatePeer) }
+                onToggleFavorite = { viewModel.toggleFavorite(selectedPrivatePeer) },
+                viewModel = viewModel
             )
         }
         currentChannel != null -> {
@@ -305,7 +338,8 @@ private fun PrivateChatHeader(
     selectedLocationChannel: com.bitchat.android.geohash.ChannelID?,
     geohashPeople: List<GeoPerson>,
     onBackClick: () -> Unit,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    viewModel: ChatViewModel
 ) {
     val colorScheme = MaterialTheme.colorScheme
     val isNostrDM = peerID.startsWith("nostr_") || peerID.startsWith("nostr:")
@@ -405,6 +439,17 @@ private fun PrivateChatHeader(
                     modifier = Modifier.size(14.dp)
                 )
             }
+            
+            // Satochip status icon
+            Spacer(modifier = Modifier.width(4.dp))
+            val satochipStatus = viewModel.getSatochipCardStatus()
+            val isSatochipConnected = viewModel.isSatochipCardConnected()
+            val isSatochipReady = satochipStatus.contains("Ready")
+            SatochipStatusIcon(
+                isConnected = isSatochipConnected,
+                isPinVerified = isSatochipReady,
+                modifier = Modifier.size(14.dp)
+            )
 
         }
         

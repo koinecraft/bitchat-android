@@ -1,6 +1,7 @@
 package com.bitchat.android
 
 import android.content.Intent
+import android.nfc.NfcAdapter
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -39,9 +40,11 @@ import com.bitchat.android.onboarding.OnboardingCoordinator
 import com.bitchat.android.onboarding.OnboardingState
 import com.bitchat.android.onboarding.PermissionExplanationScreen
 import com.bitchat.android.onboarding.PermissionManager
+import com.bitchat.android.satochip.SatochipService
 import com.bitchat.android.ui.ChatScreen
 import com.bitchat.android.ui.ChatViewModel
 import com.bitchat.android.ui.theme.BitchatTheme
+import org.satochip.android.NFCCardManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -55,6 +58,11 @@ class MainActivity : ComponentActivity() {
     
     // Core mesh service - managed at app level
     private lateinit var meshService: BluetoothMeshService
+    
+    // Satochip NFC components
+    private lateinit var satochipService: SatochipService
+    private lateinit var nfcCardManager: NFCCardManager
+    private var nfcAdapter: NfcAdapter? = null
     private val mainViewModel: MainViewModel by viewModels()
     private val chatViewModel: ChatViewModel by viewModels { 
         object : ViewModelProvider.Factory {
@@ -102,6 +110,9 @@ class MainActivity : ComponentActivity() {
             onOnboardingComplete = ::handleOnboardingComplete,
             onOnboardingFailed = ::handleOnboardingFailed
         )
+        
+        // Initialize Satochip components
+        initializeSatochip()
         
         setContent {
             BitchatTheme {
@@ -737,6 +748,14 @@ class MainActivity : ComponentActivity() {
             Log.w("MainActivity", "Error cleaning up location status manager: ${e.message}")
         }
         
+        // Cleanup Satochip components
+        try {
+            cleanupSatochip()
+            Log.d("MainActivity", "Satochip components cleaned up successfully")
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Error cleaning up Satochip components: ${e.message}")
+        }
+        
         // Stop mesh services if app was fully initialized
         if (mainViewModel.onboardingState.value == OnboardingState.COMPLETE) {
             try {
@@ -746,5 +765,70 @@ class MainActivity : ComponentActivity() {
                 Log.w("MainActivity", "Error stopping mesh services in onDestroy: ${e.message}")
             }
         }
+    }
+    
+    // MARK: - Satochip Management
+    
+    /**
+     * Initialize Satochip NFC components
+     */
+    private fun initializeSatochip() {
+        try {
+            // Initialize Satochip service
+            satochipService = SatochipService.getInstance(this, meshService, chatViewModel)
+            satochipService.initialize()
+            
+            // Initialize NFC card manager
+            nfcCardManager = NFCCardManager()
+            nfcCardManager.setCardListener(satochipService.getCardManager() as org.satochip.io.CardListener)
+            nfcCardManager.start()
+            
+            // Get NFC adapter and enable reader mode
+            nfcAdapter = NfcAdapter.getDefaultAdapter(this)
+            nfcAdapter?.let { adapter ->
+                if (adapter.isEnabled) {
+                    adapter.enableReaderMode(
+                        this,
+                        nfcCardManager,
+                        NfcAdapter.FLAG_READER_NFC_A or NfcAdapter.FLAG_READER_NFC_B,
+                        null
+                    )
+                    Log.d("MainActivity", "NFC reader mode enabled for Satochip")
+                } else {
+                    Log.w("MainActivity", "NFC is not enabled on this device")
+                }
+            } ?: run {
+                Log.w("MainActivity", "NFC is not available on this device")
+            }
+            
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error initializing Satochip components: ${e.message}")
+        }
+    }
+    
+    /**
+     * Cleanup Satochip components
+     */
+    private fun cleanupSatochip() {
+        try {
+            // Disable NFC reader mode
+            nfcAdapter?.disableReaderMode(this)
+            
+            // Stop NFC card manager
+            nfcCardManager.stop()
+            
+            // Cleanup Satochip service
+            satochipService.cleanup()
+            
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error cleaning up Satochip components: ${e.message}")
+        }
+    }
+    
+    /**
+     * Get Satochip service instance
+     */
+    fun getSatochipService(): SatochipService {
+        return satochipService
     }
 }

@@ -26,9 +26,13 @@
     <!-- Battery optimization permission -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     
+    <!-- NFC permissions for Satochip -->
+    <uses-permission android:name="android.permission.NFC" />
+    
     <!-- Hardware features -->
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
     <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
 
     <application
         android:name=".BitchatApplication"
