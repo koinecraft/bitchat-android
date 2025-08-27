@@ -112,7 +112,7 @@ class SatochipService private constructor(
                 
                 // Return the message with the actual signature appended
                 val signatureHex = signature.joinToString("") { "%02x".format(it) }
-                return "$eventContent:$signatureHex"
+                return "$eventContent~$signatureHex"
             }
             null
         } catch (e: Exception) {
