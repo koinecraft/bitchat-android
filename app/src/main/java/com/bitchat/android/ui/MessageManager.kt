@@ -21,8 +21,18 @@ class MessageManager(private val state: ChatState) {
     fun addMessage(message: BitchatMessage) {
         val currentMessages = state.getMessagesValue().toMutableList()
         currentMessages.add(message)
-        currentMessages.sortBy { it.timestamp }
         state.setMessages(currentMessages)
+    }
+
+    // Log a system message into the main chat (visible to user)
+    fun addSystemMessage(text: String) {
+        val sys = BitchatMessage(
+            sender = "system",
+            content = text,
+            timestamp = Date(),
+            isRelay = false
+        )
+        addMessage(sys)
     }
     
     fun clearMessages() {
@@ -39,12 +49,21 @@ class MessageManager(private val state: ChatState) {
         
         val channelMessageList = currentChannelMessages[channel]?.toMutableList() ?: mutableListOf()
         channelMessageList.add(message)
-        channelMessageList.sortBy { it.timestamp }
         currentChannelMessages[channel] = channelMessageList
         state.setChannelMessages(currentChannelMessages)
         
-        // Update unread count if not currently in this channel
-        if (state.getCurrentChannelValue() != channel) {
+        // Update unread count if not currently viewing this channel
+        // Consider both classic channels (state.currentChannel) and geohash location channel selection
+        val viewingClassicChannel = state.getCurrentChannelValue() == channel
+        val viewingGeohashChannel = try {
+            if (channel.startsWith("geo:")) {
+                val geo = channel.removePrefix("geo:")
+                val selected = state.selectedLocationChannel.value
+                selected is com.bitchat.android.geohash.ChannelID.Location && selected.channel.geohash.equals(geo, ignoreCase = true)
+            } else false
+        } catch (_: Exception) { false }
+
+        if (!viewingClassicChannel && !viewingGeohashChannel) {
             val currentUnread = state.getUnreadChannelMessagesValue().toMutableMap()
             currentUnread[channel] = (currentUnread[channel] ?: 0) + 1
             state.setUnreadChannelMessages(currentUnread)
@@ -83,7 +102,6 @@ class MessageManager(private val state: ChatState) {
         
         val chatMessages = currentPrivateChats[peerID]?.toMutableList() ?: mutableListOf()
         chatMessages.add(message)
-        chatMessages.sortBy { it.timestamp }
         currentPrivateChats[peerID] = chatMessages
         state.setPrivateChats(currentPrivateChats)
         
@@ -103,7 +121,6 @@ class MessageManager(private val state: ChatState) {
         }
         val chatMessages = currentPrivateChats[peerID]?.toMutableList() ?: mutableListOf()
         chatMessages.add(message)
-        chatMessages.sortBy { it.timestamp }
         currentPrivateChats[peerID] = chatMessages
         state.setPrivateChats(currentPrivateChats)
     }

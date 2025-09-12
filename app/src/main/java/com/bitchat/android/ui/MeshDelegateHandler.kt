@@ -1,6 +1,5 @@
 package com.bitchat.android.ui
 
-import androidx.lifecycle.LifecycleCoroutineScope
 import com.bitchat.android.mesh.BluetoothMeshDelegate
 import com.bitchat.android.mesh.BluetoothMeshService
 import com.bitchat.android.model.BitchatMessage
@@ -8,7 +7,7 @@ import com.bitchat.android.model.DeliveryStatus
 import com.bitchat.android.satochip.SatochipMessageParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import java.util.*
+import java.util.Date
 
 /**
  * Handles all BluetoothMeshDelegate callbacks and routes them to appropriate managers
@@ -75,7 +74,7 @@ class MeshDelegateHandler(
                     channelManager.addChannelMessage(message.channel, updatedMessage, message.senderPeerID)
                 }
             } else {
-                // Public message
+                // Public mesh message - always store to preserve message history
                 messageManager.addMessage(updatedMessage)
                 
                 // Check for mentions in mesh chat
@@ -93,9 +92,10 @@ class MeshDelegateHandler(
         coroutineScope.launch {
             state.setConnectedPeers(peers)
             state.setIsConnected(peers.isNotEmpty())
+            notificationManager.showActiveUserNotification(peers)
             // Flush router outbox for any peers that just connected (and their noiseHex aliases)
             runCatching { com.bitchat.android.services.MessageRouter.tryGetInstance()?.onPeersUpdated(peers) }
-            
+
             // Clean up channel members who disconnected
             channelManager.cleanupDisconnectedMembers(peers, getMyPeerID())
 
@@ -114,16 +114,21 @@ class MeshDelegateHandler(
                         meshNoiseKeyForPeer = { pid -> getPeerInfo(pid)?.noisePublicKey },
                         meshHasPeer = { pid -> peers.contains(pid) },
                         nostrPubHexForAlias = { alias ->
-                            // Best-effort: derive pub hex from favorites mapping
-                            val prefix = alias.removePrefix("nostr_")
-                            val favs = try { com.bitchat.android.favorites.FavoritesPersistenceService.shared.getOurFavorites() } catch (_: Exception) { emptyList() }
-                            favs.firstNotNullOfOrNull { rel ->
-                                rel.peerNostrPublicKey?.let { s ->
-                                    runCatching { com.bitchat.android.nostr.Bech32.decode(s) }.getOrNull()?.let { dec ->
-                                        if (dec.first == "npub") dec.second.joinToString("") { b -> "%02x".format(b) } else null
+                            // Use GeohashAliasRegistry for geohash aliases, but for mesh favorites, derive from favorites mapping
+                            if (com.bitchat.android.nostr.GeohashAliasRegistry.contains(alias)) {
+                                com.bitchat.android.nostr.GeohashAliasRegistry.get(alias)
+                            } else {
+                                // Best-effort: derive pub hex from favorites mapping for mesh nostr_ aliases
+                                val prefix = alias.removePrefix("nostr_")
+                                val favs = try { com.bitchat.android.favorites.FavoritesPersistenceService.shared.getOurFavorites() } catch (_: Exception) { emptyList() }
+                                favs.firstNotNullOfOrNull { rel ->
+                                    rel.peerNostrPublicKey?.let { s ->
+                                        runCatching { com.bitchat.android.nostr.Bech32.decode(s) }.getOrNull()?.let { dec ->
+                                            if (dec.first == "npub") dec.second.joinToString("") { b -> "%02x".format(b) } else null
+                                        }
                                     }
-                                }
-                            }?.takeIf { it.startsWith(prefix, ignoreCase = true) }
+                                }?.takeIf { it.startsWith(prefix, ignoreCase = true) }
+                            }
                         },
                         findNoiseKeyForNostr = { key -> com.bitchat.android.favorites.FavoritesPersistenceService.shared.findNoiseKey(key) }
                     )
@@ -187,7 +192,7 @@ class MeshDelegateHandler(
     private fun unifyChatsIntoPeer(targetPeerID: String, keysToMerge: List<String>) {
         com.bitchat.android.services.ConversationAliasResolver.unifyChatsIntoPeer(state, targetPeerID, keysToMerge)
     }
-    
+
     override fun didReceiveChannelLeave(channel: String, fromPeer: String) {
         coroutineScope.launch {
             channelManager.removeChannelMember(channel, fromPeer)
@@ -226,13 +231,13 @@ class MeshDelegateHandler(
             if (currentNickname.isNullOrEmpty()) {
                 return
             }
-            
+
             // Check if this message mentions the current user using @username format
             val isMention = checkForMeshMention(message.content, currentNickname)
-            
+
             if (isMention) {
                 android.util.Log.d("MeshDelegateHandler", "🔔 Triggering mesh mention notification from ${message.sender}")
-                
+
                 notificationManager.showMeshMentionNotification(
                     senderNickname = message.sender,
                     messageContent = message.content,
@@ -243,14 +248,14 @@ class MeshDelegateHandler(
             android.util.Log.e("MeshDelegateHandler", "Error checking mesh mentions: ${e.message}")
         }
     }
-    
+
     /**
      * Check if the content mentions the current user with @username format (simple, no hash suffix)
      */
     private fun checkForMeshMention(content: String, currentNickname: String): Boolean {
         // Simple mention pattern for mesh: @username (no hash suffix like geohash)
         val mentionPattern = "@([\\p{L}0-9_]+)".toRegex()
-        
+
         return mentionPattern.findAll(content).any { match ->
             val mentionedUsername = match.groupValues[1]
             // Direct comparison for mesh mentions (no hash suffix to remove)

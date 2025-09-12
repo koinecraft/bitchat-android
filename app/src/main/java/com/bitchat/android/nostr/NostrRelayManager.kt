@@ -113,12 +113,9 @@ class NostrRelayManager private constructor() {
     private var subscriptionValidationJob: Job? = null
     private val SUBSCRIPTION_VALIDATION_INTERVAL = 30000L // 30 seconds
     
-    // OkHttp client for WebSocket connections
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.SECONDS) // No read timeout for WebSocket
-        .writeTimeout(10, TimeUnit.SECONDS)
-        .build()
+    // OkHttp client for WebSocket connections (via provider to honor Tor)
+    private val httpClient: OkHttpClient
+        get() = com.bitchat.android.net.OkHttpProvider.webSocketClient()
     
     private val gson by lazy { NostrRequest.createGson() }
     
@@ -457,6 +454,31 @@ class NostrRelayManager private constructor() {
     }
     
     /**
+     * Clear all subscription tracking, message handlers, routing caches, and queued messages.
+     * Intended for panic/reset flows prior to reconnecting and re-subscribing from scratch.
+     */
+    fun clearAllSubscriptions() {
+        try {
+            // Clear persistent subscription tracking
+            activeSubscriptions.clear()
+            messageHandlers.clear()
+            subscriptions.clear()
+
+            // Clear routing caches (per-geohash relay selections)
+            geohashToRelays.clear()
+
+            // Clear any queued messages waiting to be sent
+            synchronized(messageQueueLock) {
+                messageQueue.clear()
+            }
+
+            Log.i(TAG, "🧹 Cleared all Nostr subscriptions and routing caches")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear subscriptions: ${e.message}")
+        }
+    }
+    
+    /**
      * Get detailed status for all relays
      */
     fun getRelayStatuses(): List<Relay> {
@@ -643,6 +665,16 @@ class NostrRelayManager private constructor() {
                     val relay = relaysList.find { it.url == relayUrl }
                     relay?.messagesReceived = (relay?.messagesReceived ?: 0) + 1
                     updateRelaysList()
+                    
+                    // CLIENT-SIDE FILTER ENFORCEMENT: Ensure this event matches the subscription's filter
+                    activeSubscriptions[response.subscriptionId]?.let { subInfo ->
+                        val matches = try { subInfo.filter.matches(response.event) } catch (e: Exception) { true }
+                        if (!matches) {
+                            Log.v(TAG, "🚫 Dropping event ${response.event.id.take(16)}... not matching filter for sub=${response.subscriptionId}")
+                            // Do NOT call deduplicator here to allow the correct subscription to process it later
+                            return
+                        }
+                    }
                     
                     // DEDUPLICATION: Check if we've already processed this event
                     val wasProcessed = eventDeduplicator.processEvent(response.event) { event ->

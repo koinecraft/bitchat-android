@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bitchat.android.nostr.NostrProofOfWork
+import com.bitchat.android.nostr.PoWPreferenceManager
+import com.bitchat.android.ui.debug.DebugSettingsSheet
 
 /**
  * About Sheet for bitchat app information
@@ -30,6 +34,7 @@ import androidx.compose.ui.unit.sp
 fun AboutSheet(
     isPresented: Boolean,
     onDismiss: () -> Unit,
+    onShowDebug: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -44,6 +49,7 @@ fun AboutSheet(
     }
     
     // Bottom sheet state
+
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = false
     )
@@ -119,8 +125,8 @@ fun AboutSheet(
                         FeatureCard(
                             icon = Icons.Filled.Public,
                             iconColor = standardGreen,
-                            title = "geohash channels",
-                            description = "internet-based location channels using coarse geohash coordinates. connect with people in your area while preserving privacy.",
+                            title = "online geohash channels",
+                            description = "connect with people in your area using geohash-based channels. extend the mesh using public internet relays.",
                             modifier = Modifier.fillMaxWidth()
                         )
                         
@@ -128,35 +134,254 @@ fun AboutSheet(
                             icon = Icons.Filled.Lock,
                             iconColor = if (isDark) Color(0xFFFFD60A) else Color(0xFFF5A623),
                             title = "end-to-end encryption",
-                            description = "all direct messages use noise protocol encryption. channel messages are protected with optional passwords.",
+                            description = "private messages are encrypted. channel messages are public.",
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
-                
-                // Additional features
+
+                // Appearance section (theme toggle)
                 item {
-                    Surface(
+                    val themePref by com.bitchat.android.ui.theme.ThemePreferenceManager.themeFlow.collectAsState()
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        color = colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "additional features",
-                                fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Medium,
-                                color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        Text(
+                            text = "appearance",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = themePref.isSystem,
+                                onClick = { com.bitchat.android.ui.theme.ThemePreferenceManager.set(context, com.bitchat.android.ui.theme.ThemePreference.System) },
+                                label = { Text("system", fontFamily = FontFamily.Monospace) }
                             )
-                            
-                            FeatureItem("store-and-forward messaging for offline peers")
-                            FeatureItem("ephemeral messaging with automatic cleanup")
-                            FeatureItem("peer discovery and identity verification")
-                            FeatureItem("minimal metadata leakage")
+                            FilterChip(
+                                selected = themePref.isLight,
+                                onClick = { com.bitchat.android.ui.theme.ThemePreferenceManager.set(context, com.bitchat.android.ui.theme.ThemePreference.Light) },
+                                label = { Text("light", fontFamily = FontFamily.Monospace) }
+                            )
+                            FilterChip(
+                                selected = themePref.isDark,
+                                onClick = { com.bitchat.android.ui.theme.ThemePreferenceManager.set(context, com.bitchat.android.ui.theme.ThemePreference.Dark) },
+                                label = { Text("dark", fontFamily = FontFamily.Monospace) }
+                            )
+                        }
+                    }
+                }
+
+                // Proof of Work section
+                item {
+                    val context = LocalContext.current
+                    
+                    // Initialize PoW preferences if not already done
+                    LaunchedEffect(Unit) {
+                        PoWPreferenceManager.init(context)
+                    }
+                    
+                    val powEnabled by PoWPreferenceManager.powEnabled.collectAsState()
+                    val powDifficulty by PoWPreferenceManager.powDifficulty.collectAsState()
+                    
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "proof of work",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                        
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            FilterChip(
+                                selected = !powEnabled,
+                                onClick = { PoWPreferenceManager.setPowEnabled(false) },
+                                label = { Text("pow off", fontFamily = FontFamily.Monospace) }
+                            )
+                            FilterChip(
+                                selected = powEnabled,
+                                onClick = { PoWPreferenceManager.setPowEnabled(true) },
+                                label = { 
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("pow on", fontFamily = FontFamily.Monospace)
+                                        // Show current difficulty
+                                        if (powEnabled) {
+                                            Surface(
+                                                color = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D),
+                                                shape = RoundedCornerShape(50)
+                                            ) { Box(Modifier.size(8.dp)) }
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        
+                        Text(
+                            text = "add proof of work to geohash messages for spam deterrence.",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                        
+                        // Show difficulty slider when enabled
+                        if (powEnabled) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "difficulty: $powDifficulty bits (~${NostrProofOfWork.estimateMiningTime(powDifficulty)})",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                                
+                                Slider(
+                                    value = powDifficulty.toFloat(),
+                                    onValueChange = { PoWPreferenceManager.setPowDifficulty(it.toInt()) },
+                                    valueRange = 0f..32f,
+                                    steps = 33, // 33 discrete values (0-32)
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D),
+                                        activeTrackColor = if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
+                                    )
+                                )
+                                
+                                // Show difficulty description
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Text(
+                                            text = "difficulty $powDifficulty requires ~${NostrProofOfWork.estimateWork(powDifficulty)} hash attempts",
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = colorScheme.onSurface.copy(alpha = 0.7f)
+                                        )
+                                        Text(
+                                            text = when {
+                                                powDifficulty == 0 -> "no proof of work required"
+                                                powDifficulty <= 8 -> "very low - minimal spam protection"
+                                                powDifficulty <= 12 -> "low - basic spam protection"
+                                                powDifficulty <= 16 -> "medium - good spam protection"
+                                                powDifficulty <= 20 -> "high - strong spam protection"
+                                                powDifficulty <= 24 -> "very high - may cause delays"
+                                                else -> "extreme - significant computation required"
+                                            },
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            color = colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Network (Tor) section
+                item {
+                    val ctx = LocalContext.current
+                    val torMode = remember { mutableStateOf(com.bitchat.android.net.TorPreferenceManager.get(ctx)) }
+                    val torStatus by com.bitchat.android.net.TorManager.statusFlow.collectAsState()
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "network",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Medium,
+                            color = colorScheme.onSurface.copy(alpha = 0.8f)
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            FilterChip(
+                                selected = torMode.value == com.bitchat.android.net.TorMode.OFF,
+                                onClick = {
+                                    torMode.value = com.bitchat.android.net.TorMode.OFF
+                                    com.bitchat.android.net.TorPreferenceManager.set(ctx, torMode.value)
+                                },
+                                label = { Text("tor off", fontFamily = FontFamily.Monospace) }
+                            )
+                            FilterChip(
+                                selected = torMode.value == com.bitchat.android.net.TorMode.ON,
+                                onClick = {
+                                    torMode.value = com.bitchat.android.net.TorMode.ON
+                                    com.bitchat.android.net.TorPreferenceManager.set(ctx, torMode.value)
+                                },
+                                label = { 
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text("tor on", fontFamily = FontFamily.Monospace)
+                                        // Status indicator (red/orange/green) moved inside the "tor on" button
+                                        val statusColor = when {
+                                            torStatus.running && torStatus.bootstrapPercent < 100 -> Color(0xFFFF9500)
+                                            torStatus.running && torStatus.bootstrapPercent >= 100 -> if (isDark) Color(0xFF32D74B) else Color(0xFF248A3D)
+                                            else -> Color.Red
+                                        }
+                                        Surface(
+                                            color = statusColor,
+                                            shape = RoundedCornerShape(50)
+                                        ) { Box(Modifier.size(8.dp)) }
+                                    }
+                                }
+                            )
+                        }
+                        Text(
+                            text = "route internet over tor for enhanced privacy.",
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+
+                        // Debug status (temporary)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = colorScheme.surfaceVariant.copy(alpha = 0.25f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "tor status: " +
+                                            (if (torStatus.running) "running" else "stopped") +
+                                            ", bootstrap=" + torStatus.bootstrapPercent + "%",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = colorScheme.onSurface.copy(alpha = 0.75f)
+                                )
+                                val last = torStatus.lastLogLine
+                                if (last.isNotEmpty()) {
+                                    Text(
+                                        text = "last: " + last.take(160),
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -200,6 +425,30 @@ fun AboutSheet(
                     }
                 }
                 
+                // Debug settings button
+                item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Debug button styled to match the app aesthetic
+                        TextButton(
+                            onClick = { onShowDebug?.invoke() },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        ) {
+                            Text(
+                                text = "debug settings",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                }
+
                 // Version and footer space
                 item {
                     Column(

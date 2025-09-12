@@ -7,13 +7,17 @@
 
 # bitchat for Android
 
-A secure, decentralized, peer-to-peer messaging app that works over Bluetooth mesh networks. No internet required, no servers, no phone numbers - just pure encrypted communication.
+A secure, decentralized, peer-to-peer messaging app that works over Bluetooth mesh networks. No internet required for mesh chats, no servers, no phone numbers - just pure encrypted communication. Bitchat also supports geohash channels, which use an internet connection to connect you with others in your geographic area.
 
 This is the **Android port** of the original [bitchat iOS app](https://github.com/jackjackbits/bitchat), maintaining 100% protocol compatibility for cross-platform communication.
 
 ## Install bitchat
 
 You can download the latest version of bitchat for Android from the [GitHub Releases page](https://github.com/permissionlesstech/bitchat-android/releases).
+
+Or you can:
+
+[<img alt="Get it on Google Play" height="60" src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png"/>](https://play.google.com/store/apps/details?id=com.bitchat.droid)
 
 **Instructions:**
 
@@ -161,7 +165,7 @@ The app requires the following permissions (automatically requested):
 - **Ephemeral by Default**: Messages exist only in device memory
 - **Cover Traffic**: Random delays and dummy messages prevent traffic analysis
 - **Emergency Wipe**: Triple-tap logo to instantly clear all data
-- **Local-First**: Works completely offline, no servers involved
+- **Bundled Tor Support**: Built-in Tor network integration for enhanced privacy when internet connectivity is available
 
 ## Performance & Efficiency
 
