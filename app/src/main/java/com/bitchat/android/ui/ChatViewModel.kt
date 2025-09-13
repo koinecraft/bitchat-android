@@ -908,7 +908,6 @@ class ChatViewModel(
     fun colorForNostrPubkey(pubkeyHex: String, isDark: Boolean): androidx.compose.ui.graphics.Color {
         return geohashViewModel.colorForNostrPubkey(pubkeyHex, isDark)
     }
-<<<<<<< HEAD
     
     // MARK: - Satochip Integration
     
